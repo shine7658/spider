@@ -37,8 +37,54 @@ def index():
     link += "<a href=/read2>讀取Firestore資料(根據姓名關鍵字:楊)</a><hr>"
     link += "<a href=/read3>讀取Firestore資料(根據姓名關鍵字:input)</a><hr>"
     link += "<a href=/spider1>爬蟲子青老師本學期課程</a><hr>"
+    link += "<a href=/movie1>爬取即將上映電影</a><hr>"
     return link
 
+@app.route("/movie1", methods=["GET", "POST"])
+def movie1():
+    if request.method == "POST":
+        # 取得使用者輸入的關鍵字
+        keyword = request.values.get("keyword")
+       
+        url = "https://www.atmovies.com.tw/movie/next/"
+        Data = requests.get(url)
+        Data.encoding = "utf-8"
+        sp = BeautifulSoup(Data.text, "html.parser")
+        result = sp.select(".filmListAllX li")
+       
+        R = f"<h2>您搜尋的關鍵字是：{keyword}</h2>"
+        found = False
+       
+        for item in result:
+            # 取得電影名稱
+            movie_name = item.find("img").get("alt")
+           
+            # 檢查關鍵字是否在片名中 (不分大小寫可用 .lower())
+            if keyword in movie_name:
+                found = True
+                introduce = "https://www.atmovies.com.tw" + item.find("a").get("href")
+                post = "https://www.atmovies.com.tw" + item.find("img").get("src")
+               
+                R += f"<a href='{introduce}' target='_blank'>{movie_name}</a><br>"
+                R += f"<img src='{post}' style='width:200px;'><br><br>"
+       
+        if not found:
+            R += "<p>抱歉，查無包含此關鍵字的即將上映電影。</p>"
+           
+        return R + "<br><a href='/movie1'>重新查詢</a> | <a href='/'>回首頁</a>"
+   
+    else:
+        # GET 請求：顯示查詢介面
+        html = """
+        <h2>即將上映電影查詢</h2>
+        <form action="/movie1" method="POST">
+            請輸入電影片名關鍵字：
+            <input type="text" name="keyword" required>
+            <button type="submit">搜尋</button>
+        </form>
+        <br><a href="/">回首頁</a>
+        """
+        return html
 
 @app.route("/spider1")
 def spider1():

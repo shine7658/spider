@@ -38,10 +38,24 @@ def index():
     link += "<a href=/read3>讀取Firestore資料(根據姓名關鍵字:input)</a><hr>"
     link += "<a href=/spider1>爬蟲子青老師本學期課程</a><hr>"
     link += "<a href=/movie1>爬取即將上映電影</a><hr>"
-    link += "<br><a href=/spidermovie>讀取開眼電影即將上映影片，寫入Firestore</a><hr>"
-    link += "<br><a href=/searchMovie>輸入片名關鍵字,可以查詢資料庫符合的電影</a><hr>"
+    link += "<a href=/spidermovie>讀取開眼電影即將上映影片，寫入Firestore</a><hr>"
+    link += "<a href=/searchMovie>輸入片名關鍵字,可以查詢資料庫符合的電影</a><hr>"
+    link += "<a href=/road>台中市十大肇事路口</a><hr>"
 
     return link
+
+@app.route("/road")
+def road():
+    R = "<h1>台中市十大肇事路口(113年10月)<h1><br>"
+    url = "https://datacenter.taichung.gov.tw/swagger/OpenData/a1b899c0-511f-4e3d-b22b-814982a97e41"
+    Data = requests.get(url)
+
+    JsonData = json.loads(Data.text)
+    for item in JsonData:
+        print(item["路口名稱"], "原因:",item["主要肇因"])
+        print()
+
+    return R
 
 @app.route("/searchMovie", methods=["GET", "POST"])
 def search_movie():

@@ -49,29 +49,32 @@ def index():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     req = request.get_json(force=True)
-    result = req.get("queryResult")
-    action = result.get("action")
-    
-    if action == "rateChoice":
-        # 取得使用者選擇的分級
-        rate = result.get("parameters").get("rate")
-        info = f"我是宋婕開發的機器人，分級 {rate} 的電影有：\n\n"
-        
-        # 查詢資料庫
-        db = firestore.client()
-        # 直接篩選符合分級的資料
-        docs = db.collection("電影含分級").where("rate", "==", rate).get()
-        
-        movie_list = ""
-        for doc in docs:
-            m = doc.to_dict()
-            movie_list += f"🎬 {m.get('title')}\n🔗 {m.get('hyperlink')}\n\n"
-        
-        info += movie_list if movie_list else "目前無相關電影。"
-        return make_response(jsonify({"fulfillmentText": info}))
+    # 取得 Dialogflow 傳來的分級參數
+    rate = req["queryResult"]["parameters"].get("rate")
+   
+    # 簡單轉換：對應你資料庫存入的中文名稱
+    if rate == "P": rate = "保護級"
+    elif rate == "G": rate = "普遍級"
 
-    return make_response(jsonify({"fulfillmentText": "請重新輸入"}))
+    # 設定開頭語，加上你的名字
+    info = f"我是宋媫設計的機器人。關於您查詢「{rate}」的電影：\n"
 
+    db = firestore.client()
+    # 提醒：名稱需與 /rate 存入時的 "本週新片含分級" 一致
+    docs = db.collection("本週新片含分級").get()
+   
+    result = ""
+    for doc in docs:
+        m = doc.to_dict()
+        if rate in m.get("rate", ""):
+            result += m.get("title") + "\n"
+
+    if result == "":
+        info += "目前資料庫中查無此級別的電影。"
+    else:
+        info += result
+
+    return jsonify({"fulfillmentText": info})
 
 @app.route("/rate")
 def rate():

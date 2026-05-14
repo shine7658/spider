@@ -48,30 +48,43 @@ def index():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    # build a request object
+    # 1. 取得 JSON 請求
     req = request.get_json(force=True)
-    # fetch queryResult from json
-    action =  req.get("queryResult").get("action")
-    msg =  req.get("queryResult").get("queryText")
-    info = "我是宋婕設計的機器人,動作：" + action + "； 查詢內容：" + msg
+    
+    # 2. 取得 action
+    query_result = req.get("queryResult")
+    action = query_result.get("action")
+    
+    # 初始化 info 變數，避免 action 不符時出錯
+    info = "抱歉，我無法處理這項請求。"
+
+    # 3. 判斷 Action (必須在 return 之前進行)
+    if action == "rateChoice":
+        # 修正語法：字典取值應使用 () 或 []，Dialogflow 參數通常在 parameters 裡
+        rate = query_result.get("parameters").get("rate")
+        
+        info = "我是宋婕開發的電影聊天機器人，您選擇的電影分級是：" + rate + "，相關電影：\n"
+
+        # 4. 資料庫查詢
+        db = firestore.client()
+        collection_ref = db.collection("電影含分級")
+        
+        # 建議使用 .where 做篩選，效率比抓出全部資料再用 if 判斷更高
+        docs = collection_ref.where("rate", "==", rate).get()
+        
+        result = ""
+        for doc in docs:
+            movie_data = doc.to_dict()
+            result += "片名：" + movie_data.get("title", "無題") + "\n"
+            result += "介紹：" + movie_data.get("hyperlink", "#") + "\n\n"
+        
+        if not result:
+            result = "目前沒有找到符合該分級的電影。"
+            
+        info += result
+
+    # 5. 最後才回傳結果
     return make_response(jsonify({"fulfillmentText": info}))
-
-    #if (action == "rateChoice"):
-        #rate =  req.get["queryResult"].get["parameters"].get["rate"]
-        #info = "您選擇的電影分級是：" + rate
-        #info = "我是宋婕開發的電影聊天機器人,您選擇的電影分級是：" + rate + "，相關電影：\n"
-
-        #db = firestore.client()
-        #collection_ref = db.collection("電影含分級")
-        #docs = collection_ref.get()
-        #result = ""
-        #for doc in docs:
-            #dict = doc.to_dict()
-            #if rate in dict["rate"]:
-                #result += "片名：" + dict["title"] + "\n"
-                #result += "介紹：" + dict["hyperlink"] + "\n\n"
-        #info += result
-    #return make_response(jsonify({"fulfillmentText": info}))
 
 
 @app.route("/rate")

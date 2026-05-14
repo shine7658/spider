@@ -48,43 +48,29 @@ def index():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    # 1. 取得 JSON 請求
     req = request.get_json(force=True)
+    result = req.get("queryResult")
+    action = result.get("action")
     
-    # 2. 取得 action
-    query_result = req.get("queryResult")
-    action = query_result.get("action")
-    
-    # 初始化 info 變數，避免 action 不符時出錯
-    info = "抱歉，我無法處理這項請求。"
-
-    # 3. 判斷 Action (必須在 return 之前進行)
     if action == "rateChoice":
-        # 修正語法：字典取值應使用 () 或 []，Dialogflow 參數通常在 parameters 裡
-        rate = query_result.get("parameters").get("rate")
+        # 取得使用者選擇的分級
+        rate = result.get("parameters").get("rate")
+        info = f"我是宋婕開發的機器人，分級 {rate} 的電影有：\n\n"
         
-        info = "我是宋婕開發的電影聊天機器人，您選擇的電影分級是：" + rate + "，相關電影：\n"
-
-        # 4. 資料庫查詢
+        # 查詢資料庫
         db = firestore.client()
-        collection_ref = db.collection("電影含分級")
+        # 直接篩選符合分級的資料
+        docs = db.collection("電影含分級").where("rate", "==", rate).get()
         
-        # 建議使用 .where 做篩選，效率比抓出全部資料再用 if 判斷更高
-        docs = collection_ref.where("rate", "==", rate).get()
-        
-        result = ""
+        movie_list = ""
         for doc in docs:
-            movie_data = doc.to_dict()
-            result += "片名：" + movie_data.get("title", "無題") + "\n"
-            result += "介紹：" + movie_data.get("hyperlink", "#") + "\n\n"
+            m = doc.to_dict()
+            movie_list += f"🎬 {m.get('title')}\n🔗 {m.get('hyperlink')}\n\n"
         
-        if not result:
-            result = "目前沒有找到符合該分級的電影。"
-            
-        info += result
+        info += movie_list if movie_list else "目前無相關電影。"
+        return make_response(jsonify({"fulfillmentText": info}))
 
-    # 5. 最後才回傳結果
-    return make_response(jsonify({"fulfillmentText": info}))
+    return make_response(jsonify({"fulfillmentText": "請重新輸入"}))
 
 
 @app.route("/rate")
